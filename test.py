@@ -21,10 +21,6 @@ parser.add_argument('--output_folder', type=str, default='id_mit_train-inner-opt
                     help="output image path")
 parser.add_argument('--checkpoint', type=str, default='checkpoints/mit_inner-opt/gen_00440000.pt',
                     help="checkpoint of MUID")
-parser.add_argument('--seed', type=int, default=10, help="random seed")
-parser.add_argument('--num_style', type=int, default=1, help="number of styles to sample")
-parser.add_argument('--synchronized', action='store_true', help="whether use synchronized style code or not")
-parser.add_argument('--output_only', action='store_true', help="whether use synchronized style code or not")
 parser.add_argument('--output_path', type=str, default='.', help="path for logs, checkpoints, and VGG model weight")
 parser.add_argument('--trainer', type=str, default='MUID', help="MUID|UID")
 opts = parser.parse_args()
