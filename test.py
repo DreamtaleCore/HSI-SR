@@ -14,7 +14,7 @@ from torchvision import transforms
 from PIL import Image
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--configs', type=str, default='configs/intrinsic_MIT.yaml', help="net configuration")
+parser.add_argument('--configs', type=str, default='configs/teacher-student.yaml', help="net configuration")
 parser.add_argument('--input_dir', type=str, default='/home/ros/ws/nips19/datasets/intrinsic/MIT-inner-split/trainA',
                     help="input image path")
 parser.add_argument('--output_folder', type=str, default='id_mit_train-inner-opt',
