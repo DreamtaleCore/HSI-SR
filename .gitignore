@@ -1,0 +1,15 @@
+docs/
+inputs/
+results/
+result-*
+checkpoints-*
+checkpoints/
+pretrained/
+.idea/
+datasets/
+scripts/checkpoints*
+id_*
+
+
+
+
