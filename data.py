@@ -118,3 +118,7 @@ class LowLevelImageFolder(data.Dataset):
         targets['name'] = file_name
 
         return img_in, targets
+
+if __name__ == "__main__":
+    if is_image_file('img01.jpg'):
+        print('is image file')
