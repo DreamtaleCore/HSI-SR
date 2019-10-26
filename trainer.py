@@ -1,8 +1,8 @@
 """
 Trainer for Hyper Spectral Image Super-resolution, KD based
 """
-from networks import get_student, get_teacher, get_discriminator
-from utils import weights_init, get_scheduler, get_model_list, get_criterion
+from networks import get_student, get_teacher, get_discriminator, get_criterion
+from utils import weights_init, get_scheduler, get_model_list
 from torch.autograd import Variable
 import torch
 import torch.nn as nn
