@@ -8,6 +8,7 @@ import torch.utils.data as data
 import random
 import matplotlib.pyplot as plt
 
+
 # create dataloader
 def create_dataloader(dataset, dataset_opt, opt=None, sampler=None):
     phase = dataset_opt['phase']
@@ -139,6 +140,7 @@ class LQGTDataset(data.Dataset):
     """
     Read LQ (Low Quality, e.g. LR (Low Resolution), blurry, etc) and GT image pairs.
     """
+
     def __init__(self, opt):
         super(LQGTDataset, self).__init__()
         self.opt = opt
@@ -184,7 +186,7 @@ class LQGTDataset(data.Dataset):
 
             # augmentation - flip, rotate
             img_LQ, img_GT = augment([img_LQ, img_GT], self.opt['use_flip'],
-                                          self.opt['use_rot'])
+                                     self.opt['use_rot'])
 
         # HWC to CHW, numpy to tensor
         img_GT = torch.from_numpy(np.ascontiguousarray(np.transpose(img_GT, (2, 0, 1)))).float()
@@ -235,7 +237,7 @@ def test_dataloader():
         LQ = data['LQ']
         GT = data['GT']
 
-        print('GT_size:',GT.size())
+        print('GT_size:', GT.size())
         print('GT_path:', data['GT_path'])
         print('LQ_size:', LQ.size())
         print('LQ_path:', data['LQ_path'])

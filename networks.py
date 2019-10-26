@@ -48,15 +48,17 @@ def get_discriminator(dis_opt, train_mode=None):
     # multi-scale dis
     return Discriminator(dis_opt)
 
+
 def get_teacher(opt_net, train_mode=None):
     """Get a teacher"""
     return SRResNet(in_nc=opt_net['in_nc'], out_nc=opt_net['out_nc'],
-                                       nf=opt_net['nf'], nb=opt_net['nb'], upscale=opt_net['scale'])
+                    nf=opt_net['nf'], nb=opt_net['nb'], upscale=opt_net['scale'])
+
 
 def get_student(opt_net, train_mode=None):
     """Get a student"""
     return SRResNet(in_nc=opt_net['in_nc'], out_nc=opt_net['out_nc'],
-                                       nf=opt_net['nf'], nb=opt_net['nb'], upscale=opt_net['scale'])
+                    nf=opt_net['nf'], nb=opt_net['nb'], upscale=opt_net['scale'])
 
 
 ##################################################################################
@@ -94,7 +96,7 @@ class SRResNet(nn.Module):
 
         # initialization
         initialize_weights([self.conv_first, self.upconv1, self.HRconv, self.conv_last],
-                                     0.1)
+                           0.1)
         if self.upscale == 4:
             initialize_weights(self.upconv2, 0.1)
 
@@ -132,6 +134,7 @@ class SRResNet(nn.Module):
 
 class Discriminator(nn.Module):
     """Discriminator."""
+
     def __init__(self):
         super(Discriminator, self).__init__()
 
@@ -146,6 +149,7 @@ class ResidualBlock_noBN(nn.Module):
     ---Conv-ReLU-Conv-+-
      |________________|
     '''
+
     def __init__(self, nf=64):
         super(ResidualBlock_noBN, self).__init__()
         self.conv1 = nn.Conv2d(nf, nf, 3, 1, 1, bias=True)
