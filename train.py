@@ -28,7 +28,6 @@ cudnn.benchmark = True
 config = get_config(opts.config)
 display_size = config['display_size']
 
-cudnn.benchmark = True
 torch.cuda.set_device(opts.gpu_id)
 
 # Setup model and data loader
@@ -78,14 +77,8 @@ for epoch in range(start_epoch, config['n_epoch']):
 
         # Dump training stats in log file
         if (iterations + 1) % config['log_iter'] == 0:
-            print('<{}> [Epoch: {}] [Iter: {}/{}] | Loss: '
-                  'vgg: {:.4f} | pixel: {:.4f} | retina: {:.4f} | '
-                  'gen: {:.4f} | dis: {:.4f} | '.format(get_local_time(), epoch, it, len(train_loader),
-                                                        to_number(trainer.loss_vgg),
-                                                        to_number(trainer.loss_pixel),
-                                                        to_number(trainer.loss_retina),
-                                                        to_number(trainer.loss_gen),
-                                                        to_number(trainer.loss_dis)))
+            print('<{}> [Epoch: {}] [Iter: {}/{}] | Loss: {}'.format(get_local_time(), epoch, it, len(train_loader),
+                                                                     to_number(trainer.loss_total)))
             write_loss(iterations, trainer, train_writer)
 
         # Write images
@@ -127,4 +120,3 @@ for epoch in range(start_epoch, config['n_epoch']):
                 trainer.save(checkpoint_directory, epoch)
             else:
                 print('\n<{}> The current loss is {}'.format(get_local_time(), avg_loss))
-
