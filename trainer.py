@@ -1,8 +1,8 @@
 """
 Trainer for Hyper Spectral Image Super-resolution, KD based
 """
-from networks import get_student, get_teacher, RetinaLoss, VggLoss
-from utils import weights_init, get_scheduler, get_model_list
+from networks import get_student, get_teacher, get_discriminator
+from utils import weights_init, get_scheduler, get_model_list, get_criterion
 from torch.autograd import Variable
 import torch
 import torch.nn as nn
@@ -16,6 +16,7 @@ class Trainer(nn.Module):
         # Initiate the networks
         self.student = get_student(param)
         self.teacher = get_teacher(param)
+        self.discriminator = get_discriminator(param)  # todo: add D to further boost the performance
 
         # Setup the optimizers
         beta1 = param['beta1']
@@ -33,7 +34,7 @@ class Trainer(nn.Module):
         # self.apply(weights_init(param['init']))
         self.best_result = float('inf')
 
-        self.criteria = RetinaLoss()
+        self.criterion = get_criterion(param)
 
     def forward(self, x_i):
         self.eval()
@@ -50,7 +51,7 @@ class Trainer(nn.Module):
         tea_pred = self.teacher(x_in)
 
         # loss constraints
-        self.loss_total = self.criteria(stu_pred, tea_pred, y_out, param)
+        self.loss_total = self.criterion(stu_pred, tea_pred, y_out, param)
 
         self.loss_total.backward()
         self.stu_opt.step()
