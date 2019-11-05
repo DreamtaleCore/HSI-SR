@@ -49,14 +49,16 @@ def get_discriminator(dis_opt, train_mode=None):
     return Discriminator(dis_opt)
 
 
-def get_teacher(opt_net, train_mode=None):
+def get_teacher(opt, train_mode=None):
     """Get a teacher"""
+    opt_net = opt['network_T']
     return SRResNet(in_nc=opt_net['in_nc'], out_nc=opt_net['out_nc'],
                     nf=opt_net['nf'], nb=opt_net['nb'], upscale=opt_net['scale'])
 
 
-def get_student(opt_net, train_mode=None):
+def get_student(opt, train_mode=None):
     """Get a student"""
+    opt_net = opt['network_S']
     return SRResNet(in_nc=opt_net['in_nc'], out_nc=opt_net['out_nc'],
                     nf=opt_net['nf'], nb=opt_net['nb'], upscale=opt_net['scale'])
 
@@ -217,19 +219,15 @@ class CriterionPairWiseForWholeFeatAfterPool(nn.Module):
         self.criterion = sim_dis_compute
         self.scale = scale
 
-    def forward(self, preds_stu, preds_tea):
+    def forward(self, feat_S, feat_T):
         loss = 0
-        for k, v in preds_stu:
-            feat_S = preds_stu[k]
-            feat_T = preds_tea[k]
-            feat_T.detach()
+        feat_T.detach()
 
-            total_w, total_h = feat_T.shape[2], feat_T.shape[3]
-            patch_w, patch_h = int(total_w * self.scale), int(total_h * self.scale)
-            maxpool = nn.MaxPool2d(kernel_size=(patch_w, patch_h), stride=(patch_w, patch_h), padding=0,
-                                   ceil_mode=True)  # change
-            loss += self.criterion(maxpool(feat_S), maxpool(feat_T))
-        loss = loss / len(preds_stu)
+        total_w, total_h = feat_T.shape[2], feat_T.shape[3]
+        patch_w, patch_h = int(total_w * self.scale), int(total_h * self.scale)
+        maxpool = nn.MaxPool2d(kernel_size=(patch_w, patch_h), stride=(patch_w, patch_h), padding=0,
+                               ceil_mode=True)  # change
+        loss = self.criterion(maxpool(feat_S), maxpool(feat_T))
         return loss
 
 
@@ -237,14 +235,14 @@ class CriterionMerge(nn.Module):
     def __init__(self, param):
         super(CriterionMerge, self).__init__()
         self.loss_pair = CriterionPairWiseForWholeFeatAfterPool(param.pairwise_scale)
-        self.loss_l2 = L2
+        self.loss_l2 = nn.L1Loss()
         pass
 
     def forward(self, stu_pred, tea_pred, y_out, param):
-        l_pair = self.loss_pair(stu_pred, tea_pred)
-        l_pixel = self.loss_l2(stu_pred['out'] - tea_pred['out'])
+        l_pair = self.loss_pair(stu_pred['mid'], tea_pred['mid'])
+        l_pixel = self.loss_l2(stu_pred['out'], tea_pred['out'])
 
-        loss = param.pairwise_w * l_pair + param.pixel_w * l_pixel
+        loss = param['pixel_w'] * l_pair + param['pixel_w'] * l_pixel
         return loss
 
 

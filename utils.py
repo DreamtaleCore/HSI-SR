@@ -2,7 +2,7 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 from torch.optim import lr_scheduler
 from torchvision import transforms
-from data import LowLevelImageFolder
+from data import create_dataset,create_dataloader
 import torch
 import os
 import math
@@ -13,6 +13,7 @@ import numpy as np
 import torch.nn.init as init
 import time
 import easydict
+import h5py
 from torch.nn import functional as F
 import torch.nn as nn
 
@@ -49,11 +50,21 @@ def get_local_time():
 
 
 def get_reflection_data_loader(conf):
-    train_set = LowLevelImageFolder(conf, is_train=True)
-    eval_set = LowLevelImageFolder(conf, is_train=False)
-    train_loader = DataLoader(train_set)
-    eval_loader = DataLoader(eval_set)
-    return train_loader, eval_loader
+    for phase, dataset_opt in conf['datasets'].items():
+        dataset_opt['data_type'] = 'img'
+        dataset_opt['phase'] = phase
+        if conf['distortion'] == 'sr':
+            dataset_opt['scale'] = conf['scale']
+        if phase == 'train':
+            train_set = create_dataset(dataset_opt)
+            train_loader = create_dataloader(train_set, dataset_opt, conf, None)
+        elif phase == 'val':
+            dataset_opt['GT_size'] = None
+            val_set = create_dataset(dataset_opt)
+            val_loader = create_dataloader(val_set, dataset_opt, conf, None)
+        else:
+            raise NotImplementedError('Phase [{:s}] is not recognized.'.format(phase))
+    return train_loader, val_loader
 
 
 def get_config(config):
@@ -277,26 +288,41 @@ def pytorch03_to_pytorch04(state_dict_base):
     return state_dict
 
 
+def save_mat(path, mat):
+    with h5py.File(path, 'w') as hf:
+        hf.create_dataset('rad', data=mat)
+        hf.close()
+
+
 ####################
 # metric
 ####################
 
-def calculate_rmse(img_res, img_gt):
-    """Calculate the root-maen-square error"""
-    img_res = img_res.astype(np.float64)
-    img_gt = img_gt.astype(np.float64)
-    error = img_res - img_gt
-    RMSE = np.sqrt(np.mean(np.power(error, 2)))
-    return RMSE
+def calculate_rmse(sr_img, gt_img):
+    """Calculate the relative RMSE"""
+    sr_img = sr_img.astype(np.float64)
+    gt_img = gt_img.astype(np.float64)
+    rmse = np.sqrt(np.mean((sr_img - gt_img)**2))
+    return rmse
+
+
+def calculate_psnr(sr_img, gt_img):
+    # img1 and img2 have range [0, MAX]
+    sr_img = sr_img.astype(np.float64)
+    gt_img = gt_img.astype(np.float64)
+    mse = np.mean((sr_img - gt_img)**2)
+    if mse == 0:
+        return float('inf')
+    return 20 * math.log10(np.max(gt_img) / math.sqrt(mse))
 
 
 def calculate_ssim(img_res, img_gt):
     """Calculate the structural similarity"""
-    num = img_gt.shape[2]
-    ssimm = np.zeros(num)
-    c1 = 0.0001
-    c2 = 0.0009
-    n = 0
+    num=img_gt.shape[2]
+    ssimm=np.zeros(num)
+    c1=0.0001
+    c2=0.0009
+    n=0
     for x in range(img_gt.shape[2]):
         z = np.reshape(img_res[:, :, x], [-1])
         sa = np.reshape(img_gt[:, :, x], [-1])
@@ -309,55 +335,37 @@ def calculate_ssim(img_res, img_gt):
         esa = np.mean(sa)
         ssimm[n] = ((2 * ez * esa + c1) * (2 * ozsa + c2)) / ((ez * ez + esa * esa + c1) * (oz + osa + c2))
         n = n + 1
-    SSIM = np.mean(ssimm)
+    SSIM=np.mean(ssimm)
     return SSIM
 
 
-def calculate_ergas(img_res, img_gt):
-    """Calculate the relative dimensionless global error in synthesis"""
-    d = (img_res.shape[0]) * (img_res.shape[1]) / (img_gt.shape[0]) * (img_gt.shape[1])
-    num = img_gt.shape[2]
-    ergasm = np.zeros(num)
-    n = 0
-    for k in range(img_gt.shape[2]):
-        rmse_k = calculate_rmse(img_res[:, :, k], img_gt[:, :, k])
-        mul_k = np.mean(img_gt[:, :, k])
-        ergasm[n] = rmse_k / mul_k
-        n = n + 1
-    ERGAS = 100 * d * np.mean(ergasm)
-    return ERGAS
-
-
-def calculate_sam(img_res, img_gt):
+def calculate_sam(sr_img, gt_img):
     """Calculate the spectral angle mapping"""
-    num = (img_gt.shape[0]) * (img_gt.shape[1])
-    samm = np.zeros(num)
-    n = 0
-    for x in range(img_gt.shape[0]):
-        for y in range(img_gt.shape[1]):
-            z = np.reshape(img_res[x, y, :], [-1])
-            sa = np.reshape(img_gt[x, y, :], [-1])
-            tem1 = np.dot(z, sa)
-            tem2 = (np.linalg.norm(z)) * (np.linalg.norm(sa))
-            samm[n] = np.arccos(tem1 / tem2)
-            n = n + 1
-    SAM = (np.mean(samm)) * 180 / np.pi
-    return SAM
+    sam = 0
+    for i in range(gt_img.shape[0]):
+        for j in range(gt_img.shape[1]):
+            x = np.reshape(sr_img[i, j, :], [-1])
+            y = np.reshape(gt_img[i, j, :], [-1])
+            tem1 = np.dot(x, y)
+            tem2 = (np.linalg.norm(x)) * (np.linalg.norm(y))
+            sam += np.arccos(tem1 / tem2)
+
+    sam = (sam / (gt_img.shape[0] * gt_img.shape[1])) * 180 / np.pi
+    return sam
 
 
-def calculate_ergas(img_res, img_gt, resize_factor=4):
+def calculate_ergas(sr_img, gt_img, resize_factor=4):
     """Error relative global dimension de synthesis (ERGAS)
     reference: https://github.com/amteodoro/SA-PnP-GMM/blob/9e8dffab223d88642545d1760669e2326efe0973/Misc/ERGAS.m
     """
-    img_res = np.float32(img_res)
-    img_gt = np.float32(img_gt)
-    # ERGAS=ERGAS+mean2(Err(:,:,iLR).^2)/(mean2((I(:,:,iLR))))^2;
-    err = img_res - img_gt
+    sr_img = sr_img.astype(np.float64)
+    gt_img = gt_img.astype(np.float64)
+    err = sr_img - gt_img
     ergas = 0
-    for i in range(img_res.shape[2]):
-        ergas += np.mean(err[:, :, i]**2) / np.mean(img_res[:, :, i])**2
+    for i in range(err.shape[2]):
+        ergas += np.mean(err[:, :, i]**2) / (np.mean(sr_img[:, :, i]))**2
 
-    ergas = (100. / float(resize_factor)) * np.sqrt(1. / 3. * ergas)
+    ergas = (100. / float(resize_factor)) * np.sqrt(1. / err.shape[2] * ergas)
     return ergas
 
 

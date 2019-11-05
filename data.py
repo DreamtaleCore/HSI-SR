@@ -91,9 +91,9 @@ def read_mat(path, phase, key):
     return: Numpy float32, HWC, [0,1]"""
     with h5py.File(path, 'r') as hf:
         img = np.array(hf.get(key))
-    # if phase != 'train':
-    #     img = np.transpose(img, (2, 1, 0))
-    img = np.transpose(img, (2, 1, 0))
+    if phase != 'train':
+        img = np.transpose(img, (2, 1, 0))
+    # img = np.transpose(img, (2, 1, 0))
     img = img.astype(np.float32) / 255.
     return img
 
@@ -212,8 +212,8 @@ def test_dataloader():
     opt['gpu_ids'] = [0]
 
     opt['name'] = dataset
-    opt['dataroot_GT'] = 'E:/MMSR/datasets/train_data/mat'
-    opt['dataroot_LQ'] = 'E:/MMSR/datasets/train_data/mat_bicLRx4'
+    opt['dataroot_GT'] = '../MMSR/datasets/train_data/ICVL151_sub'
+    opt['dataroot_LQ'] = '../MMSR/datasets/train_data/ICVL151_sub_bicLRx4'
     opt['mode'] = 'LQGT'
     opt['phase'] = 'train'
     opt['use_shuffle'] = True
